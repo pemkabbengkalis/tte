@@ -1,0 +1,26 @@
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Semua request yang tidak masuk ke /public di-redirect ke /public
+    RewriteCond %{REQUEST_URI} !^/public/
+    RewriteRule ^(.*)$ public/$1 [L]
+</IfModule>
+
+<FilesMatch "^(\.env|\.env\..*|\.git.*|composer\.(json|lock)|package(-lock)?\.json|artisan|server\.php|README\.md|phpunit\.xml.*|vite\.config\.js|tailwind\.config\.js|postcss\.config\.js)$">
+    Require all denied
+</FilesMatch>
+
+RedirectMatch 403 ^/\.env$
+RedirectMatch 403 ^/storage/.*
+RedirectMatch 403 ^/database/.*
+RedirectMatch 403 ^/bootstrap/.*
+RedirectMatch 403 ^/config/.*
+RedirectMatch 403 ^/routes/.*
+RedirectMatch 403 ^/resources/.*
+RedirectMatch 403 ^/app/.*
+RedirectMatch 403 ^/vendor/.*
+RedirectMatch 403 ^/tests/.*
+
+Options -Indexes
+
+ServerSignature Off
