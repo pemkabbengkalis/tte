@@ -129,12 +129,12 @@ new #[Layout('layouts.app')] class extends Component {
             </div>
             <select wire:model.live="statusFilter"
                 class="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500">
+                <option value="semua">Semua Status</option>
                 <option value="menunggu_verifikasi">Menunggu Verifikasi</option>
                 <option value="diproses">Diproses</option>
                 <option value="diterima">Diterima</option>
                 <option value="ditolak">Ditolak</option>
                 <option value="selesai">Selesai</option>
-                <option value="semua">Semua Status</option>
             </select>
         </div>
 
