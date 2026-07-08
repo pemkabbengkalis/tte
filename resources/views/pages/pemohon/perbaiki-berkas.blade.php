@@ -82,10 +82,28 @@ new #[Layout('layouts.app')] class extends Component {
                 continue;
             }
 
+            $this->validasiNamaFile($file, $jenis);
+            $this->validasiSignature($file, $jenis);
+
             $namaAsli = $file->getClientOriginalName();
-            $ekstensi = strtolower($file->getClientOriginalExtension());
             $ukuran = $file->getSize();
-            $mime = $file->getMimeType();
+
+            $finfo = finfo_open(FILEINFO_MIME_TYPE);
+            $mime = finfo_file($finfo, $file->getRealPath());
+            finfo_close($finfo);
+
+            $allowedMime = [
+                'application/pdf' => 'pdf',
+                'image/jpeg'      => 'jpg',
+                'image/png'       => 'png',
+            ];
+
+            if (!isset($allowedMime[$mime])) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    $jenis => 'Tipe MIME file tidak diizinkan.',
+                ]);
+            }
+            $ekstensi = $allowedMime[$mime]; // lebih aman dari getClientOriginalExtension()
 
             $versiTertinggi = (int) $this->permohonan->dokumen()->where('jenis_dokumen', $jenis)->max('versi');
 
@@ -107,6 +125,103 @@ new #[Layout('layouts.app')] class extends Component {
 
         session()->flash('ok', "Permohonan {$this->permohonan->nomor_permohonan} berhasil dikirim ulang dan menunggu verifikasi.");
         $this->redirectRoute('pemohon.dashboard', navigate: true);
+    }
+
+    private function validasiSignature($file, string $field): void
+    {
+        $finfo = finfo_open(FILEINFO_MIME_TYPE);
+
+        try {
+            $mime = finfo_file(
+                $finfo,
+                $file->getRealPath()
+            );
+        } finally {
+            finfo_close($finfo);
+        }
+
+        $allowed = [
+            'application/pdf' => [
+                '25504446'
+            ],
+
+            'image/jpeg' => [
+                'FFD8FF'
+            ],
+
+            'image/png' => [
+                '89504E47'
+            ],
+        ];
+
+        if (!isset($allowed[$mime])) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                $field => 'Tipe file tidak diizinkan.',
+            ]);
+        }
+
+        $stream = fopen(
+            $file->getRealPath(),
+            'rb'
+        );
+
+        try {
+            $bytes = fread($stream, 8);
+        } finally {
+            fclose($stream);
+        }
+
+        $signature = strtoupper(
+            bin2hex($bytes)
+        );
+
+        $valid = false;
+
+        foreach ($allowed[$mime] as $magic) {
+            if (str_starts_with(
+                $signature,
+                $magic
+            )) {
+                $valid = true;
+                break;
+            }
+        }
+
+        if (!$valid) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                $field =>
+                    'Isi file tidak sesuai format.',
+            ]);
+        }
+    }
+
+    private function validasiNamaFile($file, string $field): void
+    {
+        $nama = strtolower($file->getClientOriginalName());
+
+        if (preg_match('/\.(php|phtml|phar|cgi|pl|asp|aspx|jsp|exe|sh|bat)(\.|$)/i', $nama) || str_contains($nama, "\0")) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                $field => 'Nama file mengandung ekstensi yang tidak diizinkan.',
+            ]);
+        }
+    }
+
+    public function updated($property): void
+    {
+        if (in_array($property, [
+            'surat_permohonan',
+            'sk_jabatan',
+            'sk_pangkat',
+            'ktp',
+        ])) {
+            $this->validateOnly($property);
+
+            $file = $this->$property;
+            if ($file) {
+                $this->validasiNamaFile($file, $property);
+                $this->validasiSignature($file, $property);
+            }
+        }
     }
 
     public function with(): array
