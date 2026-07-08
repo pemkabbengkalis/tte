@@ -13,8 +13,8 @@ new #[Layout('layouts.app')] class extends Component {
     #[Url(as: 'q', except: '')]
     public string $search = '';
 
-    #[Url(as: 'status', except: 'menunggu_verifikasi')]
-    public string $statusFilter = 'menunggu_verifikasi';
+    #[Url(as: 'status', except: 'semua')]
+    public string $statusFilter = 'semua';
 
     public function updatingSearch(): void
     {
