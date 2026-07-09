@@ -116,11 +116,11 @@ new #[Layout('layouts.app')] class extends Component {
     {
         $this->normalkanNip();
         $this->validate(array_merge($this->rules(), [
-            'no_hp'       => ['required', 'string', 'max:15'],
-            'pangkat_gol' => ['required', 'string', 'max:50'],
-            'jabatan'     => ['required', 'string', 'max:100'],
-            'instansi'    => ['required', 'string', 'max:150'],
-            'unit_kerja'  => ['required', 'string', 'max:150'],
+            'no_hp'       => ['required', 'string', 'max:15', new NoHtmlTags()],
+            'pangkat_gol' => ['required', 'string', 'max:50', new NoHtmlTags()],
+            'jabatan'     => ['required', 'string', 'max:100', new NoHtmlTags()],
+            'instansi'    => ['required', 'string', 'max:150', new NoHtmlTags()],
+            'unit_kerja'  => ['required', 'string', 'max:150', new NoHtmlTags()],
         ]));
 
         $wajib = [
