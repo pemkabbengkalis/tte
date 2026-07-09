@@ -14,7 +14,7 @@ class NoHtmlTags implements ValidationRule
     public function validate(string $attribute, mixed $value, Closure $fail): void
     {
         if (is_string($value) && preg_match('/<[^>]*>/', $value) === 1) {
-            $fail('Kolom :attribute tidak boleh mengandung tag HTML.');
+            $fail('Kolom :attribute tidak diterima.');
         }
     }
 }
