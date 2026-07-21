@@ -492,7 +492,8 @@ new #[Layout('layouts.app')] class extends Component {
                         <button type="button"
                             @click="$dispatch('open-confirm', { message: 'Kirim hasil TTE ini ke pemohon? Permohonan akan ditandai selesai.', callback: () => $wire.kirimTte() })"
                             wire:loading.attr="disabled"
-                            class="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60">
+                            {{-- rounded-lg bg-primary-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-primary-700 --}}
+                            class="inline-flex items-center gap-1.5 rounded-lg bg-primary-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-primary-700 disabled:opacity-60">
                             <span wire:loading.remove wire:target="kirimTte">Kirim Hasil TTE</span>
                             <span wire:loading wire:target="kirimTte">Mengirim...</span>
                         </button>
