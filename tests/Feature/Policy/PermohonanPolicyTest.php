@@ -272,4 +272,43 @@ class PermohonanPolicyTest extends TestCase
 
         $this->assertFalse($this->policy->verifikasi($pemohon, $permohonan));
     }
+
+    // ======================================================================
+    // TC-POLICY-PERM-008: uploadTte() — Siapa yang boleh mengunggah hasil TTE
+    // ======================================================================
+
+    public function test_uploadTte_mengizinkan_verifikator_pada_status_diterima(): void
+    {
+        $pemohon     = $this->buatPemohon();
+        $verifikator = $this->buatVerifikator();
+        $permohonan  = $this->buatPermohonan($pemohon, ['status' => StatusPermohonan::Diterima]);
+
+        $this->assertTrue($this->policy->uploadTte($verifikator, $permohonan));
+    }
+
+    public function test_uploadTte_menolak_verifikator_pada_status_diproses(): void
+    {
+        $pemohon     = $this->buatPemohon();
+        $verifikator = $this->buatVerifikator();
+        $permohonan  = $this->buatPermohonan($pemohon, ['status' => StatusPermohonan::Diproses]);
+
+        $this->assertFalse($this->policy->uploadTte($verifikator, $permohonan));
+    }
+
+    public function test_uploadTte_menolak_verifikator_pada_status_selesai(): void
+    {
+        $pemohon     = $this->buatPemohon();
+        $verifikator = $this->buatVerifikator();
+        $permohonan  = $this->buatPermohonan($pemohon, ['status' => StatusPermohonan::Selesai]);
+
+        $this->assertFalse($this->policy->uploadTte($verifikator, $permohonan));
+    }
+
+    public function test_uploadTte_menolak_pemohon(): void
+    {
+        $pemohon    = $this->buatPemohon();
+        $permohonan = $this->buatPermohonan($pemohon, ['status' => StatusPermohonan::Diterima]);
+
+        $this->assertFalse($this->policy->uploadTte($pemohon, $permohonan));
+    }
 }

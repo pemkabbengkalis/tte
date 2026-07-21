@@ -2,20 +2,38 @@
 
 use App\Enums\JenisDokumen;
 use App\Enums\StatusPermohonan;
+use App\Models\DokumenPermohonan;
 use App\Models\Permohonan;
 use App\Services\PermohonanService;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
+use Livewire\WithFileUploads;
 
 new #[Layout('layouts.app')] class extends Component {
+    use WithFileUploads;
+
     public Permohonan $permohonan;
     public string $alasanTolak = '';
     public bool $modalTolak = false;
+    public $hasil_tte;
 
     public function mount(Permohonan $permohonan): void
     {
         $this->authorize('view', $permohonan);
         $this->permohonan = $permohonan->load(['pemohon', 'dokumen', 'verifikator', 'riwayatVerifikasi.verifikator']);
+    }
+
+    protected function fileRule(): array
+    {
+        return [
+            'required', 'file',
+            'mimes:pdf,jpg,jpeg,png',
+            'mimetypes:application/pdf,image/jpeg,image/png',
+            'max:2048',
+        ];
     }
 
     public function bukaModalTolak(): void
@@ -112,6 +130,152 @@ new #[Layout('layouts.app')] class extends Component {
         $this->redirectRoute('verifikator.dashboard', navigate: true);
     }
 
+    public function kirimTte(): void
+    {
+        $this->authorize('uploadTte', $this->permohonan);
+
+        if ($this->permohonan->status !== StatusPermohonan::Diterima) {
+            session()->flash('error', 'Hasil TTE hanya dapat diunggah untuk permohonan yang sudah diterima.');
+            return;
+        }
+
+        $this->validate(['hasil_tte' => $this->fileRule()], [
+            'hasil_tte.required'  => 'Berkas hasil TTE wajib diunggah.',
+            'hasil_tte.mimes'     => 'Berkas harus berformat PDF, JPG, atau PNG.',
+            'hasil_tte.mimetypes' => 'Tipe berkas tidak valid (PDF, JPG, atau PNG).',
+            'hasil_tte.max'       => 'Ukuran berkas maksimal 2MB.',
+        ]);
+
+        $file = $this->hasil_tte;
+        $this->validasiNamaFile($file, 'hasil_tte');
+        $this->validasiSignature($file, 'hasil_tte');
+
+        $namaAsli = $file->getClientOriginalName();
+        $ukuran   = $file->getSize();
+
+        $finfo = finfo_open(FILEINFO_MIME_TYPE);
+        $mime  = finfo_file($finfo, $file->getRealPath());
+        finfo_close($finfo);
+
+        $allowedMime = [
+            'application/pdf' => 'pdf',
+            'image/jpeg'      => 'jpg',
+            'image/png'       => 'png',
+        ];
+
+        if (! isset($allowedMime[$mime])) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'hasil_tte' => 'Tipe MIME file tidak diizinkan.',
+            ]);
+        }
+        $ekstensi = $allowedMime[$mime];
+
+        try {
+            DB::transaction(function () use ($file, $namaAsli, $ukuran, $mime, $ekstensi) {
+                $lama = $this->permohonan->dokumen()->where('jenis_dokumen', 'hasil_tte')->lockForUpdate()->first();
+
+                $namaUuid = Str::uuid()->toString() . '.' . $ekstensi;
+                $oldPath  = $lama?->path_file;
+                $path     = $file->storeAs('dokumen', $namaUuid, 'local');
+
+                try {
+                    DokumenPermohonan::updateOrCreate(
+                        ['permohonan_id' => $this->permohonan->id, 'jenis_dokumen' => 'hasil_tte'],
+                        [
+                            'nama_file'   => $namaAsli,
+                            'path_file'   => $path,
+                            'ukuran_file' => $ukuran,
+                            'mime_type'   => $mime,
+                            'versi'       => $lama ? $lama->versi + 1 : 1,
+                        ]
+                    );
+                    if ($oldPath) {
+                        Storage::disk('local')->delete($oldPath);
+                    }
+                } catch (\Throwable $e) {
+                    Storage::disk('local')->delete($path);
+                    throw $e;
+                }
+
+                app(PermohonanService::class)->selesaikan($this->permohonan, auth()->user());
+            });
+        } catch (\Throwable $e) {
+            report($e);
+            session()->flash('error', 'Gagal mengirim hasil TTE. Silakan coba lagi.');
+            return;
+        }
+
+        $this->reset('hasil_tte');
+        session()->flash('ok', "Hasil TTE untuk permohonan {$this->permohonan->nomor_permohonan} berhasil dikirim. Permohonan selesai.");
+        $this->redirectRoute('verifikator.dashboard', navigate: true);
+    }
+
+    private function validasiSignature($file, string $field): void
+    {
+        $finfo = finfo_open(FILEINFO_MIME_TYPE);
+
+        try {
+            $mime = finfo_file($finfo, $file->getRealPath());
+        } finally {
+            finfo_close($finfo);
+        }
+
+        $allowed = [
+            'application/pdf' => ['25504446'],
+            'image/jpeg'      => ['FFD8FF'],
+            'image/png'       => ['89504E47'],
+        ];
+
+        if (! isset($allowed[$mime])) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                $field => 'Tipe file tidak diizinkan.',
+            ]);
+        }
+
+        $stream = fopen($file->getRealPath(), 'rb');
+        try {
+            $bytes = fread($stream, 8);
+        } finally {
+            fclose($stream);
+        }
+
+        $signature = strtoupper(bin2hex($bytes));
+
+        $valid = false;
+        foreach ($allowed[$mime] as $magic) {
+            if (str_starts_with($signature, $magic)) {
+                $valid = true;
+                break;
+            }
+        }
+
+        if (! $valid) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                $field => 'Isi file tidak sesuai format.',
+            ]);
+        }
+    }
+
+    private function validasiNamaFile($file, string $field): void
+    {
+        $nama = strtolower($file->getClientOriginalName());
+
+        if (preg_match('/\.(php|phtml|phar|cgi|pl|asp|aspx|jsp|exe|sh|bat)(\.|$)/i', $nama) || str_contains($nama, "\0")) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                $field => 'Nama file mengandung ekstensi yang tidak diizinkan.',
+            ]);
+        }
+    }
+
+    public function updated($property): void
+    {
+        if ($property === 'hasil_tte' && $this->hasil_tte) {
+            $this->validateOnly($property, ['hasil_tte' => $this->fileRule()]);
+            $this->validasiNamaFile($this->hasil_tte, $property);
+            $this->validasiSignature($this->hasil_tte, $property);
+        }
+    }
+
     public function with(): array
     {
         // Susun dokumen terbaru per jenis (versi tertinggi)
@@ -119,9 +283,10 @@ new #[Layout('layouts.app')] class extends Component {
 
         return [
             'dokumenTerbaru' => $dokumenTerbaru,
-            'jenisDokumenList' => JenisDokumen::cases(),
+            'jenisDokumenList' => JenisDokumen::persyaratan(),
             'dapatDiproses' => $this->permohonan->status === StatusPermohonan::MenungguVerifikasi,
             'dapatDiselesaikan' => $this->permohonan->status === StatusPermohonan::Diproses,
+            'dapatUploadTte' => $this->permohonan->status === StatusPermohonan::Diterima,
         ];
     }
 };
@@ -306,6 +471,35 @@ new #[Layout('layouts.app')] class extends Component {
                 </div>
             @endif
 
+            @if ($dapatUploadTte)
+                <div class="rounded-xl bg-white p-5 shadow-sm ring-1 ring-gray-100">
+                    <h2 class="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-400">Kirim Hasil TTE</h2>
+                    <p class="mb-4 text-sm text-gray-600">Permohonan ini telah diterima. Unggah berkas hasil tanda
+                        tangan elektronik (TTE) untuk dikirim ke pemohon. Setelah dikirim, permohonan akan ditandai
+                        selesai.</p>
+
+                    <x-file-upload-slot label="Hasil TTE" hint="PDF/JPG/PNG, maks 2MB." :required="true">
+                        <input type="file" wire:model="hasil_tte" accept=".pdf,.jpg,.jpeg,.png"
+                            class="block w-full text-sm text-gray-600 file:mr-3 file:rounded-md file:border-0 file:bg-primary-600 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-white hover:file:bg-primary-700">
+                        <div wire:loading wire:target="hasil_tte" class="mt-1 text-xs text-primary-600">
+                            Mengunggah...</div>
+                        @error('hasil_tte')
+                            <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
+                        @enderror
+                    </x-file-upload-slot>
+
+                    <div class="mt-4 flex justify-end">
+                        <button type="button"
+                            @click="$dispatch('open-confirm', { message: 'Kirim hasil TTE ini ke pemohon? Permohonan akan ditandai selesai.', callback: () => $wire.kirimTte() })"
+                            wire:loading.attr="disabled"
+                            class="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60">
+                            <span wire:loading.remove wire:target="kirimTte">Kirim Hasil TTE</span>
+                            <span wire:loading wire:target="kirimTte">Mengirim...</span>
+                        </button>
+                    </div>
+                </div>
+            @endif
+
             @if ($permohonan->riwayatVerifikasi->isNotEmpty())
                 <div class="rounded-xl bg-white p-5 shadow-sm ring-1 ring-gray-100">
                     <h2 class="mb-4 text-sm font-semibold uppercase tracking-wide text-gray-400">Riwayat Verifikasi</h2>
@@ -315,6 +509,7 @@ new #[Layout('layouts.app')] class extends Component {
                                 $aksiStyle = match ($r->aksi) {
                                     'diterima' => ['bg' => 'bg-green-100 text-green-700', 'kata' => 'menerima'],
                                     'diproses' => ['bg' => 'bg-indigo-100 text-indigo-700', 'kata' => 'memproses'],
+                                    'selesai' => ['bg' => 'bg-blue-100 text-blue-700', 'kata' => 'mengirim hasil TTE untuk'],
                                     default => ['bg' => 'bg-red-100 text-red-700', 'kata' => 'menolak'],
                                 };
                             @endphp

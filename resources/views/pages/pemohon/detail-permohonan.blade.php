@@ -21,7 +21,8 @@ new #[Layout('layouts.app')] class extends Component {
 
         return [
             'dokumenTerbaru' => $dokumenTerbaru,
-            'jenisDokumenList' => JenisDokumen::cases(),
+            'jenisDokumenList' => JenisDokumen::persyaratan(),
+            'hasilTte' => $dokumenTerbaru[JenisDokumen::HasilTte->value] ?? null,
             'bisaPerbaiki' => $this->permohonan->status === StatusPermohonan::Ditolak,
             'bisaLanjutDraft' => $this->permohonan->status === StatusPermohonan::Draft,
         ];
@@ -112,6 +113,39 @@ new #[Layout('layouts.app')] class extends Component {
         </div>
     @endif
 
+    {{-- Selesai: hasil TTE tersedia --}}
+    @if ($permohonan->status === StatusPermohonan::Selesai)
+        <div class="rounded-xl border border-blue-200 bg-blue-50 p-5 ring-1 ring-blue-100">
+            <div class="flex items-start gap-3">
+                <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-700">
+                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                </div>
+                <div class="min-w-0 flex-1">
+                    <p class="text-sm font-semibold text-blue-800">Permohonan selesai.</p>
+                    <p class="mt-1 text-sm text-blue-900">Hasil tanda tangan elektronik (TTE) sudah tersedia.</p>
+                    @if ($hasilTte)
+                        <div class="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-lg bg-white p-3 ring-1 ring-blue-100">
+                            <p class="truncate text-xs text-gray-600">{{ $hasilTte->nama_file }} &middot;
+                                {{ $hasilTte->ukuranTerbaca() }}</p>
+                            <div class="flex shrink-0 gap-2">
+                                <a href="{{ route('dokumen.lihat', $hasilTte->id) }}" target="_blank" rel="noopener"
+                                    class="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 transition hover:bg-gray-50">
+                                    Lihat
+                                </a>
+                                <a href="{{ route('dokumen.unduh', $hasilTte->id) }}"
+                                    class="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-blue-700">
+                                    Unduh
+                                </a>
+                            </div>
+                        </div>
+                    @endif
+                </div>
+            </div>
+        </div>
+    @endif
+
     <div class="grid gap-5 lg:grid-cols-3">
 
         {{-- Kolom kiri --}}
@@ -197,6 +231,7 @@ new #[Layout('layouts.app')] class extends Component {
                                 $aksiStyle = match ($r->aksi) {
                                     'diterima' => ['bg' => 'bg-green-100 text-green-700', 'kata' => 'diterima'],
                                     'diproses' => ['bg' => 'bg-indigo-100 text-indigo-700', 'kata' => 'diproses'],
+                                    'selesai' => ['bg' => 'bg-blue-100 text-blue-700', 'kata' => 'selesai, hasil TTE dikirim'],
                                     default => ['bg' => 'bg-red-100 text-red-700', 'kata' => 'ditolak'],
                                 };
                             @endphp

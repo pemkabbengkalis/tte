@@ -4,6 +4,8 @@ namespace Tests\Feature\Livewire;
 
 use App\Enums\StatusPermohonan;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 use Tests\Feature\FeatureTestCase;
 use Tests\Support\InteractsWithUsers;
@@ -224,5 +226,106 @@ class VerifikasiComponentTest extends FeatureTestCase
             ->assertSet('modalTolak', true)
             ->call('batalTolak')
             ->assertSet('modalTolak', false);
+    }
+
+    // ======================================================================
+    // TC-LW-VER-007: kirimTte() — Pengiriman hasil TTE
+    // ======================================================================
+
+    public function test_kirim_tte_berhasil_menyelesaikan_permohonan(): void
+    {
+        Storage::fake('local');
+
+        $pemohon     = $this->buatPemohon();
+        $verifikator = $this->buatVerifikator();
+        $permohonan  = $this->buatPermohonan($pemohon, ['status' => StatusPermohonan::Diterima]);
+        $file        = UploadedFile::fake()->createWithContent('hasil-tte.pdf', "%PDF-1.4\n%%EOF");
+
+        Livewire::actingAs($verifikator)
+            ->test('pages::verifikator.detail-permohonan', ['permohonan' => $permohonan])
+            ->set('hasil_tte', $file)
+            ->call('kirimTte')
+            ->assertHasNoErrors()
+            ->assertRedirect(route('verifikator.dashboard'));
+
+        $this->assertDatabaseHas('permohonan', [
+            'id'     => $permohonan->id,
+            'status' => StatusPermohonan::Selesai->value,
+        ]);
+
+        $this->assertDatabaseHas('dokumen_permohonan', [
+            'permohonan_id' => $permohonan->id,
+            'jenis_dokumen' => 'hasil_tte',
+        ]);
+
+        $this->assertDatabaseHas('riwayat_verifikasi', [
+            'permohonan_id'  => $permohonan->id,
+            'verifikator_id' => $verifikator->id,
+            'aksi'           => 'selesai',
+        ]);
+    }
+
+    public function test_kirim_tte_gagal_jika_berkas_tidak_diunggah(): void
+    {
+        $pemohon     = $this->buatPemohon();
+        $verifikator = $this->buatVerifikator();
+        $permohonan  = $this->buatPermohonan($pemohon, ['status' => StatusPermohonan::Diterima]);
+
+        Livewire::actingAs($verifikator)
+            ->test('pages::verifikator.detail-permohonan', ['permohonan' => $permohonan])
+            ->call('kirimTte')
+            ->assertHasErrors(['hasil_tte']);
+
+        $this->assertDatabaseHas('permohonan', [
+            'id'     => $permohonan->id,
+            'status' => StatusPermohonan::Diterima->value,
+        ]);
+    }
+
+    public function test_kirim_tte_gagal_jika_tipe_file_tidak_valid(): void
+    {
+        Storage::fake('local');
+
+        $pemohon     = $this->buatPemohon();
+        $verifikator = $this->buatVerifikator();
+        $permohonan  = $this->buatPermohonan($pemohon, ['status' => StatusPermohonan::Diterima]);
+        $file        = UploadedFile::fake()->create('hasil.exe', 100, 'application/x-msdownload');
+
+        Livewire::actingAs($verifikator)
+            ->test('pages::verifikator.detail-permohonan', ['permohonan' => $permohonan])
+            ->set('hasil_tte', $file)
+            ->call('kirimTte')
+            ->assertHasErrors(['hasil_tte']);
+    }
+
+    public function test_kirim_tte_ditolak_untuk_permohonan_yang_belum_diterima(): void
+    {
+        Storage::fake('local');
+
+        $pemohon     = $this->buatPemohon();
+        $verifikator = $this->buatVerifikator();
+        $permohonan  = $this->buatPermohonan($pemohon, ['status' => StatusPermohonan::Diproses]);
+        $file        = UploadedFile::fake()->create('hasil-tte.pdf', 100, 'application/pdf');
+
+        Livewire::actingAs($verifikator)
+            ->test('pages::verifikator.detail-permohonan', ['permohonan' => $permohonan])
+            ->set('hasil_tte', $file)
+            ->call('kirimTte')
+            ->assertForbidden();
+    }
+
+    public function test_kirim_tte_ditolak_untuk_pemohon(): void
+    {
+        Storage::fake('local');
+
+        $pemohon    = $this->buatPemohon();
+        $permohonan = $this->buatPermohonan($pemohon, ['status' => StatusPermohonan::Diterima]);
+        $file       = UploadedFile::fake()->create('hasil-tte.pdf', 100, 'application/pdf');
+
+        Livewire::actingAs($pemohon)
+            ->test('pages::verifikator.detail-permohonan', ['permohonan' => $permohonan])
+            ->set('hasil_tte', $file)
+            ->call('kirimTte')
+            ->assertForbidden();
     }
 }

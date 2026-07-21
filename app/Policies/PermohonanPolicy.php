@@ -86,4 +86,12 @@ class PermohonanPolicy
             StatusPermohonan::Diproses,
         ], true);
     }
+
+    /**
+     * Verifikator dapat mengunggah hasil TTE untuk permohonan yang sudah diterima.
+     */
+    public function uploadTte(User $user, Permohonan $permohonan): bool
+    {
+        return $user->isVerifikator() && $permohonan->status === StatusPermohonan::Diterima;
+    }
 }

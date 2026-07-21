@@ -230,7 +230,7 @@ new #[Layout('layouts.app')] class extends Component {
 
         return [
             'dokumenTerbaru' => $dokumenTerbaru,
-            'jenisDokumenList' => JenisDokumen::cases(),
+            'jenisDokumenList' => JenisDokumen::persyaratan(),
         ];
     }
 };

@@ -59,6 +59,18 @@ class NotifikasiService
         ]);
     }
 
+    public function selesai(Permohonan $permohonan): void
+    {
+        Notifikasi::create([
+            'user_id'       => $permohonan->pemohon_id,
+            'permohonan_id' => $permohonan->id,
+            'judul'         => 'Sertifikat elektronik selesai',
+            'pesan'         => "Hasil tanda tangan elektronik (TTE) atas nama {$permohonan->pemohon->nama_lengkap} telah diterbitkan. Permohonan Anda telah selesai.",
+            'tipe'          => TipeNotifikasi::Selesai,
+            'is_read'       => false,
+        ]);
+    }
+
     public function ditolak(Permohonan $permohonan, string $alasan): void
     {
         Notifikasi::create([

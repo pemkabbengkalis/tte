@@ -102,7 +102,7 @@ trait InteractsWithUsers
         return Permohonan::create(array_merge([
             'nomor_permohonan'    => $nomor,
             'pemohon_id'          => $pemohon->id,
-            'jenis_permohonan'    => JenisPermohonan::TTE,
+            'jenis_permohonan'    => JenisPermohonan::SertifikatElektronik,
             'status'              => StatusPermohonan::Draft,
             'jumlah_pengajuan'    => 1,
         ], $overrides));

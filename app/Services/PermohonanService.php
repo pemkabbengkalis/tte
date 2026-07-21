@@ -124,6 +124,32 @@ class PermohonanService
         return $permohonan;
     }
 
+    /**
+     * Hasil TTE telah diunggah verifikator: Diterima -> Selesai.
+     */
+    public function selesaikan(Permohonan $permohonan, User $verifikator): Permohonan
+    {
+        $permohonan = DB::transaction(function () use ($permohonan, $verifikator) {
+            $permohonan->status = StatusPermohonan::Selesai;
+            $permohonan->verifikator_id = $verifikator->id;
+            $permohonan->tanggal_verifikasi = now();
+            $permohonan->save();
+
+            RiwayatVerifikasi::create([
+                'permohonan_id'  => $permohonan->id,
+                'verifikator_id' => $verifikator->id,
+                'aksi'           => 'selesai',
+                'catatan'        => null,
+            ]);
+
+            return $permohonan->fresh();
+        });
+
+        $this->notifikasi->selesai($permohonan->load('pemohon'));
+
+        return $permohonan;
+    }
+
     public function tolak(Permohonan $permohonan, User $verifikator, string $alasan): Permohonan
     {
         $permohonan = DB::transaction(function () use ($permohonan, $verifikator, $alasan) {

@@ -40,9 +40,9 @@ class JenisDokumenEnumTest extends TestCase
         $this->assertSame('ktp', JenisDokumen::Ktp->value);
     }
 
-    public function test_email_dinas_memiliki_nilai_yang_benar(): void
+    public function test_hasil_tte_memiliki_nilai_yang_benar(): void
     {
-        $this->assertSame('email_dinas', JenisDokumen::EmailDinas->value);
+        $this->assertSame('hasil_tte', JenisDokumen::HasilTte->value);
     }
 
     // ======================================================================
@@ -72,9 +72,9 @@ class JenisDokumenEnumTest extends TestCase
         $this->assertStringContainsString('KTP', JenisDokumen::Ktp->label());
     }
 
-    public function test_label_email_dinas_mengandung_teks_yang_benar(): void
+    public function test_label_hasil_tte_mengandung_teks_yang_benar(): void
     {
-        $this->assertStringContainsString('Email Dinas', JenisDokumen::EmailDinas->label());
+        $this->assertStringContainsString('TTE', JenisDokumen::HasilTte->label());
     }
 
     // ======================================================================
@@ -96,5 +96,19 @@ class JenisDokumenEnumTest extends TestCase
     public function test_tryFrom_mengembalikan_null_untuk_nilai_tidak_valid(): void
     {
         $this->assertNull(JenisDokumen::tryFrom('dokumen_tidak_ada'));
+    }
+
+    // ======================================================================
+    // TC-ENUM-DOK-004: persyaratan() — Berkas yang diunggah pemohon
+    // ======================================================================
+
+    public function test_persyaratan_tidak_menyertakan_hasil_tte(): void
+    {
+        $this->assertNotContains(JenisDokumen::HasilTte, JenisDokumen::persyaratan());
+    }
+
+    public function test_persyaratan_berisi_empat_jenis_dokumen(): void
+    {
+        $this->assertCount(4, JenisDokumen::persyaratan());
     }
 }

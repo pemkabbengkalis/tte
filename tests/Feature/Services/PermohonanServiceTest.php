@@ -223,6 +223,70 @@ class PermohonanServiceTest extends TestCase
     }
 
     // ======================================================================
+    // TC-SVC-PERM-006: selesaikan() — Hasil TTE dikirim, permohonan selesai
+    // ======================================================================
+
+    public function test_selesaikan_mengubah_status_menjadi_selesai(): void
+    {
+        $pemohon     = $this->buatPemohon();
+        $verifikator = $this->buatVerifikator();
+        $permohonan  = $this->buatPermohonan($pemohon, [
+            'status' => StatusPermohonan::Diterima,
+        ]);
+
+        $hasil = $this->service->selesaikan($permohonan->load('pemohon'), $verifikator);
+
+        $this->assertSame(StatusPermohonan::Selesai, $hasil->status);
+    }
+
+    public function test_selesaikan_mengisi_verifikator_id(): void
+    {
+        $pemohon     = $this->buatPemohon();
+        $verifikator = $this->buatVerifikator();
+        $permohonan  = $this->buatPermohonan($pemohon, [
+            'status' => StatusPermohonan::Diterima,
+        ]);
+
+        $hasil = $this->service->selesaikan($permohonan->load('pemohon'), $verifikator);
+
+        $this->assertSame($verifikator->id, $hasil->verifikator_id);
+    }
+
+    public function test_selesaikan_membuat_entri_riwayat_verifikasi(): void
+    {
+        $pemohon     = $this->buatPemohon();
+        $verifikator = $this->buatVerifikator();
+        $permohonan  = $this->buatPermohonan($pemohon, [
+            'status' => StatusPermohonan::Diterima,
+        ]);
+
+        $this->service->selesaikan($permohonan->load('pemohon'), $verifikator);
+
+        $this->assertDatabaseHas('riwayat_verifikasi', [
+            'permohonan_id'  => $permohonan->id,
+            'verifikator_id' => $verifikator->id,
+            'aksi'           => 'selesai',
+        ]);
+    }
+
+    public function test_selesaikan_mengirim_notifikasi_ke_pemohon(): void
+    {
+        $pemohon     = $this->buatPemohon();
+        $verifikator = $this->buatVerifikator();
+        $permohonan  = $this->buatPermohonan($pemohon, [
+            'status' => StatusPermohonan::Diterima,
+        ]);
+
+        $this->service->selesaikan($permohonan->load('pemohon'), $verifikator);
+
+        $this->assertDatabaseHas('notifikasi', [
+            'user_id'       => $pemohon->id,
+            'permohonan_id' => $permohonan->id,
+            'tipe'          => 'selesai',
+        ]);
+    }
+
+    // ======================================================================
     // TC-SVC-PERM-004: tolak() — Penolakan permohonan
     // ======================================================================
 

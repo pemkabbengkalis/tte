@@ -9,4 +9,5 @@ enum TipeNotifikasi: string
     case Diproses = 'diproses';
     case Diterima = 'diterima';
     case Ditolak = 'ditolak';
+    case Selesai = 'selesai';
 }
