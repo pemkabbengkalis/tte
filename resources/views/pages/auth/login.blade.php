@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\User;
+use App\Rules\Recaptcha;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
@@ -11,13 +12,23 @@ use Livewire\Component;
 new #[Layout('layouts.guest')] class extends Component {
     public string $email = '';
     public string $password = '';
+    public string $recaptchaToken = '';
 
     protected function rules(): array
     {
         return [
-            'email'    => ['required', 'string', 'email'],
-            'password' => ['required', 'string'],
+            'email'          => ['required', 'string', 'email'],
+            'password'       => ['required', 'string'],
+            'recaptchaToken' => ['required', new Recaptcha()],
         ];
+    }
+
+    public function rendering(): void
+    {
+        if ($this->getErrorBag()->isNotEmpty()) {
+            $this->reset('recaptchaToken');
+            $this->dispatch('recaptcha-reset');
+        }
     }
 
     public function login(): void
@@ -107,6 +118,13 @@ new #[Layout('layouts.guest')] class extends Component {
                 <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
             @enderror
         </div>
+
+        <div wire:ignore x-on:recaptcha:verified.window="$wire.set('recaptchaToken', $event.detail)">
+            <div class="g-recaptcha" data-sitekey="{{ config('services.recaptcha.site_key') }}"></div>
+        </div>
+        @error('recaptchaToken')
+            <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
+        @enderror
 
         <button type="submit" wire:loading.attr="disabled" wire:target="login"
             class="w-full rounded-lg bg-primary-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-primary-700 disabled:cursor-not-allowed disabled:opacity-60">

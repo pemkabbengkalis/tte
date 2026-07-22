@@ -44,12 +44,19 @@ class SecurityHeaders
         // CSP diterapkan pada semua environment sebagai defense-in-depth terhadap XSS,
         // bukan hanya saat app()->environment('production') (yang sebelumnya membuat
         // header ini tidak pernah terkirim ketika APP_ENV tidak diset ke 'production').
+        // Google reCAPTCHA memuat script dari google.com/gstatic.com dan me-render
+        // widget-nya di dalam iframe google.com — keduanya harus di-whitelist secara
+        // eksplisit, karena tanpa frame-src, browser jatuh ke default-src 'self'.
+        $recaptchaScripts = 'https://www.google.com/recaptcha/ https://www.gstatic.com/recaptcha/';
+        $recaptchaFrames = 'https://www.google.com/recaptcha/ https://recaptcha.google.com/recaptcha/';
+
         $csp = "default-src 'self'; "
-            . "script-src 'self' 'unsafe-eval' 'unsafe-inline'" . ($viteDevServer ? " {$viteDevServer}" : '') . "; "
+            . "script-src 'self' 'unsafe-eval' 'unsafe-inline' {$recaptchaScripts}" . ($viteDevServer ? " {$viteDevServer}" : '') . "; "
             . "style-src 'self' 'unsafe-inline'" . ($viteDevServer ? " {$viteDevServer}" : '') . "; "
             . "img-src 'self' data: blob:" . ($viteDevServer ? " {$viteDevServer}" : '') . "; "
             . "font-src 'self' data:" . ($viteDevServer ? " {$viteDevServer}" : '') . "; "
             . "connect-src 'self'" . ($viteDevServer ? " {$viteDevServer} {$viteWs}" : '') . "; "
+            . "frame-src {$recaptchaFrames}; "
             . "media-src 'self'; "
             . "object-src 'none'; "
             . "form-action 'self'; "

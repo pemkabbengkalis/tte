@@ -7,6 +7,7 @@
     <title>{{ $title ?? config('app.name') }}</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @livewireStyles
+    <script src="https://www.google.com/recaptcha/api.js?onload=onRecaptchaApiLoad&render=explicit" async defer></script>
 </head>
 
 <body class="font-sans antialiased">
@@ -35,6 +36,41 @@
     @endif
 
     @livewireScripts
+
+    <script>
+        function onRecaptchaApiLoad() {
+            renderRecaptchaWidgets();
+        }
+
+        function renderRecaptchaWidgets() {
+            if (typeof grecaptcha === 'undefined' || !grecaptcha.render) {
+                return;
+            }
+
+            document.querySelectorAll('.g-recaptcha:not([data-widget-id])').forEach((el) => {
+                const widgetId = grecaptcha.render(el, {
+                    sitekey: el.dataset.sitekey,
+                    callback: (token) => {
+                        el.dispatchEvent(new CustomEvent('recaptcha:verified', { detail: token, bubbles: true }));
+                    },
+                    'expired-callback': () => {
+                        el.dispatchEvent(new CustomEvent('recaptcha:verified', { detail: '', bubbles: true }));
+                    },
+                });
+                el.setAttribute('data-widget-id', widgetId);
+            });
+        }
+
+        document.addEventListener('livewire:navigated', renderRecaptchaWidgets);
+
+        document.addEventListener('livewire:init', () => {
+            Livewire.on('recaptcha-reset', () => {
+                if (typeof grecaptcha !== 'undefined') {
+                    grecaptcha.reset();
+                }
+            });
+        });
+    </script>
 </body>
 
 </html>

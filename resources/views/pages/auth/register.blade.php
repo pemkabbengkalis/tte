@@ -3,6 +3,7 @@
 use App\Enums\RoleUser;
 use App\Models\User;
 use App\Rules\NoHtmlTags;
+use App\Rules\Recaptcha;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 
@@ -14,17 +15,27 @@ new #[Layout('layouts.guest')] class extends Component {
     public string $instansi = '';
     public string $password = '';
     public string $password_confirmation = '';
+    public string $recaptchaToken = '';
 
     protected function rules(): array
     {
         return [
-            'nama_lengkap' => ['required', 'string', 'min:3', 'max:150', new NoHtmlTags()],
-            'nip'          => ['nullable', 'digits:18', 'unique:users,nip'],
-            'nik'          => ['required', 'digits:16', 'unique:users,nik'],
-            'email'        => ['required', 'email', 'max:150', 'unique:users,email'],
-            'instansi'     => ['nullable', 'string', 'max:150', new NoHtmlTags()],
-            'password'     => ['required', 'confirmed', 'min:8'],
+            'nama_lengkap'   => ['required', 'string', 'min:3', 'max:150', new NoHtmlTags()],
+            'nip'            => ['nullable', 'digits:18', 'unique:users,nip'],
+            'nik'            => ['required', 'digits:16', 'unique:users,nik'],
+            'email'          => ['required', 'email', 'max:150', 'unique:users,email'],
+            'instansi'       => ['nullable', 'string', 'max:150', new NoHtmlTags()],
+            'password'       => ['required', 'confirmed', 'min:8'],
+            'recaptchaToken' => ['required', new Recaptcha()],
         ];
+    }
+
+    public function rendering(): void
+    {
+        if ($this->getErrorBag()->isNotEmpty()) {
+            $this->reset('recaptchaToken');
+            $this->dispatch('recaptcha-reset');
+        }
     }
 
     protected function messages(): array
@@ -164,6 +175,13 @@ new #[Layout('layouts.guest')] class extends Component {
                 </button>
             </div>
         </div>
+
+        <div wire:ignore x-on:recaptcha:verified.window="$wire.set('recaptchaToken', $event.detail)">
+            <div class="g-recaptcha" data-sitekey="{{ config('services.recaptcha.site_key') }}"></div>
+        </div>
+        @error('recaptchaToken')
+            <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
+        @enderror
 
         <button type="submit" wire:loading.attr="disabled" wire:target="register"
             class="w-full rounded-lg bg-primary-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-primary-700 disabled:cursor-not-allowed disabled:opacity-60">
