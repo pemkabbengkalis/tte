@@ -135,12 +135,12 @@ new #[Layout('layouts.app')] class extends Component {
         $this->authorize('uploadTte', $this->permohonan);
 
         if ($this->permohonan->status !== StatusPermohonan::Diterima) {
-            session()->flash('error', 'Hasil TTE hanya dapat diunggah untuk permohonan yang sudah diterima.');
+            session()->flash('error', 'Visualisasi TTE hanya dapat diunggah untuk permohonan yang sudah diterima.');
             return;
         }
 
         $this->validate(['hasil_tte' => $this->fileRule()], [
-            'hasil_tte.required'  => 'Berkas hasil TTE wajib diunggah.',
+            'hasil_tte.required'  => 'Berkas visualisasi TTE wajib diunggah.',
             'hasil_tte.mimes'     => 'Berkas harus berformat PDF, JPG, atau PNG.',
             'hasil_tte.mimetypes' => 'Tipe berkas tidak valid (PDF, JPG, atau PNG).',
             'hasil_tte.max'       => 'Ukuran berkas maksimal 2MB.',
@@ -201,12 +201,12 @@ new #[Layout('layouts.app')] class extends Component {
             });
         } catch (\Throwable $e) {
             report($e);
-            session()->flash('error', 'Gagal mengirim hasil TTE. Silakan coba lagi.');
+            session()->flash('error', 'Gagal mengirim visualisasi TTE. Silakan coba lagi.');
             return;
         }
 
         $this->reset('hasil_tte');
-        session()->flash('ok', "Hasil TTE untuk permohonan {$this->permohonan->nomor_permohonan} berhasil dikirim. Permohonan selesai.");
+        session()->flash('ok', "Visualisasi TTE untuk permohonan {$this->permohonan->nomor_permohonan} berhasil dikirim. Permohonan selesai.");
         $this->redirectRoute('verifikator.dashboard', navigate: true);
     }
 
@@ -473,12 +473,12 @@ new #[Layout('layouts.app')] class extends Component {
 
             @if ($dapatUploadTte)
                 <div class="rounded-xl bg-white p-5 shadow-sm ring-1 ring-gray-100">
-                    <h2 class="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-400">Kirim Hasil TTE</h2>
+                    <h2 class="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-400">Kirim Visualisasi TTE</h2>
                     <p class="mb-4 text-sm text-gray-600">Permohonan ini telah diterima. Unggah berkas hasil tanda
                         tangan elektronik (TTE) untuk dikirim ke pemohon. Setelah dikirim, permohonan akan ditandai
                         selesai.</p>
 
-                    <x-file-upload-slot label="Hasil TTE" hint="PDF/JPG/PNG, maks 2MB." :required="true">
+                    <x-file-upload-slot label="Visualisasi TTE" hint="PDF/JPG/PNG, maks 2MB." :required="true">
                         <input type="file" wire:model="hasil_tte" accept=".pdf,.jpg,.jpeg,.png"
                             class="block w-full text-sm text-gray-600 file:mr-3 file:rounded-md file:border-0 file:bg-primary-600 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-white hover:file:bg-primary-700">
                         <div wire:loading wire:target="hasil_tte" class="mt-1 text-xs text-primary-600">
@@ -490,11 +490,11 @@ new #[Layout('layouts.app')] class extends Component {
 
                     <div class="mt-4 flex justify-end">
                         <button type="button"
-                            @click="$dispatch('open-confirm', { message: 'Kirim hasil TTE ini ke pemohon? Permohonan akan ditandai selesai.', callback: () => $wire.kirimTte() })"
+                            @click="$dispatch('open-confirm', { message: 'Kirim visualisasi TTE ini ke pemohon? Permohonan akan ditandai selesai.', callback: () => $wire.kirimTte() })"
                             wire:loading.attr="disabled"
                             {{-- rounded-lg bg-primary-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-primary-700 --}}
                             class="inline-flex items-center gap-1.5 rounded-lg bg-primary-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-primary-700 disabled:opacity-60">
-                            <span wire:loading.remove wire:target="kirimTte">Kirim Hasil TTE</span>
+                            <span wire:loading.remove wire:target="kirimTte">Kirim Visualisasi TTE</span>
                             <span wire:loading wire:target="kirimTte">Mengirim...</span>
                         </button>
                     </div>
@@ -510,7 +510,7 @@ new #[Layout('layouts.app')] class extends Component {
                                 $aksiStyle = match ($r->aksi) {
                                     'diterima' => ['bg' => 'bg-green-100 text-green-700', 'kata' => 'menerima'],
                                     'diproses' => ['bg' => 'bg-indigo-100 text-indigo-700', 'kata' => 'memproses'],
-                                    'selesai' => ['bg' => 'bg-blue-100 text-blue-700', 'kata' => 'mengirim hasil TTE untuk'],
+                                    'selesai' => ['bg' => 'bg-blue-100 text-blue-700', 'kata' => 'mengirim visualisasi TTE untuk'],
                                     default => ['bg' => 'bg-red-100 text-red-700', 'kata' => 'menolak'],
                                 };
                             @endphp
