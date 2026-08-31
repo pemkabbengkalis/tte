@@ -43,6 +43,9 @@ Route::middleware(['auth', 'aktif'])->group(function () {
         Route::livewire('/pemohon/buat-permohonan/{permohonan?}', 'pages::pemohon.buat-permohonan')
             ->name('pemohon.buat');
 
+        Route::livewire('/pemohon/permohonan/{permohonanAsal}/perpanjang', 'pages::pemohon.buat-permohonan')
+            ->name('pemohon.perpanjang');
+
         Route::livewire('/pemohon/permohonan/{permohonan}', 'pages::pemohon.detail-permohonan')
             ->name('pemohon.detail');
 

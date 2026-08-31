@@ -94,4 +94,24 @@ class PermohonanPolicy
     {
         return $user->isVerifikator() && $permohonan->status === StatusPermohonan::Diterima;
     }
+
+    /**
+     * Pemohon dapat mengajukan perpanjangan atas permohonan miliknya yang
+     * sudah Selesai, selama belum ada perpanjangan yang masih berjalan
+     * (belum ditolak) untuk permohonan tersebut.
+     */
+    public function ajukanPerpanjangan(User $user, Permohonan $permohonan): bool
+    {
+        if (! $user->isPemohon() || $permohonan->pemohon_id !== $user->id) {
+            return false;
+        }
+
+        if ($permohonan->status !== StatusPermohonan::Selesai) {
+            return false;
+        }
+
+        return ! $permohonan->perpanjangan()
+            ->where('status', '!=', StatusPermohonan::Ditolak)
+            ->exists();
+    }
 }

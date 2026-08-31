@@ -25,6 +25,7 @@ class Permohonan extends Model
         'nomor_permohonan',
         'pemohon_id',
         'jenis_permohonan',
+        'permohonan_asal_id',
         'status',
         'tanggal_pengajuan',
         'tanggal_verifikasi',
@@ -69,6 +70,16 @@ class Permohonan extends Model
     public function notifikasi(): HasMany
     {
         return $this->hasMany(Notifikasi::class, 'permohonan_id');
+    }
+
+    public function permohonanAsal(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'permohonan_asal_id');
+    }
+
+    public function perpanjangan(): HasMany
+    {
+        return $this->hasMany(self::class, 'permohonan_asal_id');
     }
 
     // ===== Helper =====

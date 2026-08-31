@@ -190,4 +190,66 @@ class PermohonanComponentTest extends FeatureTestCase
             ->test('pages::pemohon.detail-permohonan', ['permohonan' => $permohonan])
             ->assertStatus(200);
     }
+
+    // ======================================================================
+    // TC-LW-PERM-008: Ajukan perpanjangan dari permohonan yang sudah Selesai
+    // ======================================================================
+
+    public function test_mount_perpanjangan_mengisi_jenis_permohonan_dan_menampilkan_permohonan_asal(): void
+    {
+        $pemohon       = $this->buatPemohon();
+        $permohonanAsal = $this->buatPermohonan($pemohon, ['status' => StatusPermohonan::Selesai]);
+
+        Livewire::actingAs($pemohon)
+            ->test('pages::pemohon.buat-permohonan', ['permohonanAsal' => $permohonanAsal->id])
+            ->assertSet('jenis_permohonan', JenisPermohonan::Perpanjangan->value)
+            ->assertSet('permohonanAsalId', $permohonanAsal->id);
+    }
+
+    public function test_mount_perpanjangan_menolak_jika_permohonan_asal_belum_selesai(): void
+    {
+        $pemohon       = $this->buatPemohon();
+        $permohonanAsal = $this->buatPermohonan($pemohon, ['status' => StatusPermohonan::Diterima]);
+
+        Livewire::actingAs($pemohon)
+            ->test('pages::pemohon.buat-permohonan', ['permohonanAsal' => $permohonanAsal->id])
+            ->assertStatus(403);
+    }
+
+    public function test_mount_perpanjangan_menolak_bukan_pemilik(): void
+    {
+        $pemohon1       = $this->buatPemohon();
+        $pemohon2       = $this->buatPemohon();
+        $permohonanAsal = $this->buatPermohonan($pemohon1, ['status' => StatusPermohonan::Selesai]);
+
+        Livewire::actingAs($pemohon2)
+            ->test('pages::pemohon.buat-permohonan', ['permohonanAsal' => $permohonanAsal->id])
+            ->assertStatus(403);
+    }
+
+    public function test_simpan_draft_perpanjangan_membuat_permohonan_baru_dengan_referensi_asal(): void
+    {
+        Storage::fake('local');
+
+        $pemohon       = $this->buatPemohon();
+        $permohonanAsal = $this->buatPermohonan($pemohon, ['status' => StatusPermohonan::Selesai]);
+        // UploadedFile::fake()->create() tidak menghasilkan byte PDF asli, sehingga akan
+        // ditolak oleh pengecekan signature/magic-byte di simpanDokumen(). Gunakan konten
+        // dengan header "%PDF-" (hex 25504446) agar lolos validasi tipe file yang sesungguhnya.
+        $file = UploadedFile::fake()->createWithContent('surat.pdf', "%PDF-1.4\n%\xE2\xE3\xCF\xD3\n");
+
+        Livewire::actingAs($pemohon)
+            ->test('pages::pemohon.buat-permohonan', ['permohonanAsal' => $permohonanAsal->id])
+            ->set('surat_permohonan', $file)
+            ->call('simpanDraft')
+            ->assertHasNoErrors()
+            ->assertRedirect(route('pemohon.dashboard'));
+
+        $this->assertDatabaseHas('permohonan', [
+            'pemohon_id'         => $pemohon->id,
+            'jenis_permohonan'   => JenisPermohonan::Perpanjangan->value,
+            'permohonan_asal_id' => $permohonanAsal->id,
+            'status'             => StatusPermohonan::Draft->value,
+        ]);
+    }
 }

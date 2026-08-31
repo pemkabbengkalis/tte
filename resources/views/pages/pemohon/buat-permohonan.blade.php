@@ -32,7 +32,10 @@ new #[Layout('layouts.app')] class extends Component {
     public ?string $permohonanId = null;
     public array $dokumenTersimpan = [];
 
-    public function mount(?string $permohonan = null): void
+    public ?string $permohonanAsalId = null;
+    public ?Permohonan $asalPermohonan = null;
+
+    public function mount(?string $permohonan = null, ?string $permohonanAsal = null): void
     {
         $user = auth()->user();
         $this->nip = $user->nip;
@@ -41,6 +44,17 @@ new #[Layout('layouts.app')] class extends Component {
         $this->jabatan = $user->jabatan ?? '';
         $this->instansi = $user->instansi ?? '';
         $this->unit_kerja = $user->unit_kerja ?? '';
+
+        if ($permohonanAsal) {
+            $asal = Permohonan::findOrFail($permohonanAsal);
+            $this->authorize('ajukanPerpanjangan', $asal);
+
+            $this->asalPermohonan = $asal;
+            $this->permohonanAsalId = $asal->id;
+            $this->jenis_permohonan = JenisPermohonan::Perpanjangan->value;
+
+            return;
+        }
 
         if ($permohonan) {
             $pemohon = Permohonan::where('pemohon_id', $user->id)
@@ -51,6 +65,10 @@ new #[Layout('layouts.app')] class extends Component {
             if ($pemohon) {
                 $this->permohonanId = $pemohon->id;
                 $this->jenis_permohonan = $pemohon->jenis_permohonan?->value ?? 'Penerbitan Sertifikat Elektronik';
+                $this->permohonanAsalId = $pemohon->permohonan_asal_id;
+                if ($this->permohonanAsalId) {
+                    $this->asalPermohonan = Permohonan::find($this->permohonanAsalId);
+                }
                 foreach ($pemohon->dokumen as $d) {
                     $this->dokumenTersimpan[$d->jenis_dokumen->value] = $d->nama_file;
                 }
@@ -77,7 +95,10 @@ new #[Layout('layouts.app')] class extends Component {
             'jabatan'          => ['nullable', 'string', 'max:100', new NoHtmlTags()],
             'instansi'         => ['nullable', 'string', 'max:150', new NoHtmlTags()],
             'unit_kerja'       => ['nullable', 'string', 'max:150', new NoHtmlTags()],
-            'jenis_permohonan' => ['required', Rule::in([JenisPermohonan::SertifikatElektronik->value])],
+            'jenis_permohonan' => ['required', Rule::in([
+                JenisPermohonan::SertifikatElektronik->value,
+                JenisPermohonan::Perpanjangan->value,
+            ])],
             'surat_permohonan' => $this->fileRule(),
             'sk_jabatan'       => $this->fileRule(),
             'sk_pangkat'       => $this->fileRule(),
@@ -177,6 +198,7 @@ new #[Layout('layouts.app')] class extends Component {
                     StatusPermohonan::Draft;
 
                 $permohonan->jumlah_pengajuan=1;
+                $permohonan->permohonan_asal_id = $this->permohonanAsalId;
             }
 
             $permohonan->save();
@@ -369,11 +391,20 @@ new #[Layout('layouts.app')] class extends Component {
 <div class="mx-auto max-w-3xl space-y-5">
     <div class="flex items-center justify-between">
         <div>
-            <h1 class="text-xl font-semibold text-gray-800">Buat Permohonan</h1>
+            <h1 class="text-xl font-semibold text-gray-800">
+                {{ $asalPermohonan ? 'Ajukan Perpanjangan Sertifikat Elektronik' : 'Buat Permohonan' }}
+            </h1>
             <p class="text-sm text-gray-500">Lengkapi data diri dan unggah berkas persyaratan.</p>
         </div>
         <a href="{{ route('pemohon.dashboard') }}" wire:navigate class="text-sm font-medium text-gray-500 hover:text-gray-700">&larr; Kembali</a>
     </div>
+
+    @if ($asalPermohonan)
+        <div class="rounded-xl border border-primary-200 bg-primary-50 p-4 text-sm text-primary-800 ring-1 ring-primary-100">
+            Anda sedang mengajukan <strong>perpanjangan</strong> dari permohonan
+            <strong>{{ $asalPermohonan->nomor_permohonan }}</strong>.
+        </div>
+    @endif
 
     {{-- Data diri --}}
     <div class="rounded-xl bg-white p-5 shadow-sm ring-1 ring-gray-100">

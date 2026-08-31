@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\JenisPermohonan;
 use App\Enums\RoleUser;
 use App\Enums\TipeNotifikasi;
 use App\Models\Notifikasi;
@@ -11,6 +12,18 @@ use Illuminate\Support\Facades\DB;
 
 class NotifikasiService
 {
+    /**
+     * Kata kerja yang sesuai jenis permohonan, dipakai pada teks notifikasi
+     * supaya pemohon/verifikator tidak salah paham antara pengajuan baru
+     * dan perpanjangan.
+     */
+    private function kataProses(Permohonan $permohonan): string
+    {
+        return $permohonan->jenis_permohonan === JenisPermohonan::Perpanjangan
+            ? 'perpanjangan sertifikat elektronik'
+            : 'penerbitan sertifikat elektronik';
+    }
+
     public function permohonanBaru(Permohonan $permohonan): void
     {
         $pemohon = $permohonan->pemohon;
@@ -41,7 +54,7 @@ class NotifikasiService
             'user_id'       => $permohonan->pemohon_id,
             'permohonan_id' => $permohonan->id,
             'judul'         => 'Permohonan sedang diproses',
-            'pesan'         => "Berkas permohonan atas nama {$permohonan->pemohon->nama_lengkap} telah diverifikasi lengkap dan sedang diproses untuk penerbitan sertifikat elektronik.",
+            'pesan'         => "Berkas permohonan atas nama {$permohonan->pemohon->nama_lengkap} telah diverifikasi lengkap dan sedang diproses untuk {$this->kataProses($permohonan)}.",
             'tipe'          => TipeNotifikasi::Diproses,
             'is_read'       => false,
         ]);
@@ -53,7 +66,7 @@ class NotifikasiService
             'user_id'       => $permohonan->pemohon_id,
             'permohonan_id' => $permohonan->id,
             'judul'         => 'Permohonan diterima',
-            'pesan'         => "Permohonan sertifikat elektronik atas nama {$permohonan->pemohon->nama_lengkap} telah diterima. Silakan menunggu proses penerbitan sertifikat elektronik.",
+            'pesan'         => "Permohonan sertifikat elektronik atas nama {$permohonan->pemohon->nama_lengkap} telah diterima. Silakan menunggu proses {$this->kataProses($permohonan)}.",
             'tipe'          => TipeNotifikasi::Diterima,
             'is_read'       => false,
         ]);

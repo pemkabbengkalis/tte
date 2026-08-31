@@ -42,7 +42,10 @@ new #[Layout('layouts.app')] class extends Component {
         $userId = auth()->id();
 
         return [
-            'daftar' => Permohonan::with(['pemohon'])
+            'daftar' => Permohonan::with([
+                    'pemohon',
+                    'perpanjangan' => fn ($q) => $q->where('status', '!=', StatusPermohonan::Ditolak),
+                ])
                 ->where('pemohon_id', $userId)
                 ->orderByDesc('created_at')
                 ->paginate(10),
@@ -194,6 +197,22 @@ new #[Layout('layouts.app')] class extends Component {
                                         <a href="{{ route('pemohon.perbaiki', $p->id) }}"
                                             class="px-3 py-1 text-xs bg-blue-600 text-white rounded">
                                             Perbaiki
+                                        </a>
+
+                                    </div>
+
+                                @elseif ($p->status === StatusPermohonan::Selesai && $p->perpanjangan->isEmpty())
+
+                                    <div class="flex gap-2 justify-end">
+
+                                        <a href="{{ route('pemohon.detail', $p->id) }}"
+                                            class="px-3 py-1 text-xs border rounded">
+                                            Detail
+                                        </a>
+
+                                        <a href="{{ route('pemohon.perpanjang', $p->id) }}"
+                                            class="px-3 py-1 text-xs bg-blue-600 text-white rounded">
+                                            Perpanjang
                                         </a>
 
                                     </div>

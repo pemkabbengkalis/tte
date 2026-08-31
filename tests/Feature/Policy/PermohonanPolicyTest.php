@@ -311,4 +311,68 @@ class PermohonanPolicyTest extends TestCase
 
         $this->assertFalse($this->policy->uploadTte($pemohon, $permohonan));
     }
+
+    // ======================================================================
+    // TC-POLICY-PERM-009: ajukanPerpanjangan() — Siapa yang boleh mengajukan perpanjangan
+    // ======================================================================
+
+    public function test_ajukanPerpanjangan_mengizinkan_pemilik_pada_status_selesai(): void
+    {
+        $pemohon    = $this->buatPemohon();
+        $permohonan = $this->buatPermohonan($pemohon, ['status' => StatusPermohonan::Selesai]);
+
+        $this->assertTrue($this->policy->ajukanPerpanjangan($pemohon, $permohonan));
+    }
+
+    public function test_ajukanPerpanjangan_menolak_pada_status_selain_selesai(): void
+    {
+        $pemohon    = $this->buatPemohon();
+        $permohonan = $this->buatPermohonan($pemohon, ['status' => StatusPermohonan::Diterima]);
+
+        $this->assertFalse($this->policy->ajukanPerpanjangan($pemohon, $permohonan));
+    }
+
+    public function test_ajukanPerpanjangan_menolak_bukan_pemilik(): void
+    {
+        $pemohon1   = $this->buatPemohon();
+        $pemohon2   = $this->buatPemohon();
+        $permohonan = $this->buatPermohonan($pemohon1, ['status' => StatusPermohonan::Selesai]);
+
+        $this->assertFalse($this->policy->ajukanPerpanjangan($pemohon2, $permohonan));
+    }
+
+    public function test_ajukanPerpanjangan_menolak_verifikator(): void
+    {
+        $pemohon     = $this->buatPemohon();
+        $verifikator = $this->buatVerifikator();
+        $permohonan  = $this->buatPermohonan($pemohon, ['status' => StatusPermohonan::Selesai]);
+
+        $this->assertFalse($this->policy->ajukanPerpanjangan($verifikator, $permohonan));
+    }
+
+    public function test_ajukanPerpanjangan_menolak_jika_sudah_ada_perpanjangan_yang_belum_ditolak(): void
+    {
+        $pemohon    = $this->buatPemohon();
+        $permohonan = $this->buatPermohonan($pemohon, ['status' => StatusPermohonan::Selesai]);
+
+        $this->buatPermohonan($pemohon, [
+            'status'             => StatusPermohonan::MenungguVerifikasi,
+            'permohonan_asal_id' => $permohonan->id,
+        ]);
+
+        $this->assertFalse($this->policy->ajukanPerpanjangan($pemohon, $permohonan));
+    }
+
+    public function test_ajukanPerpanjangan_mengizinkan_jika_perpanjangan_sebelumnya_ditolak(): void
+    {
+        $pemohon    = $this->buatPemohon();
+        $permohonan = $this->buatPermohonan($pemohon, ['status' => StatusPermohonan::Selesai]);
+
+        $this->buatPermohonan($pemohon, [
+            'status'             => StatusPermohonan::Ditolak,
+            'permohonan_asal_id' => $permohonan->id,
+        ]);
+
+        $this->assertTrue($this->policy->ajukanPerpanjangan($pemohon, $permohonan));
+    }
 }

@@ -5,6 +5,7 @@ namespace App\Enums;
 enum JenisPermohonan: string
 {
     case SertifikatElektronik = 'Penerbitan Sertifikat Elektronik';
+    case Perpanjangan = 'Perpanjangan Sertifikat Elektronik';
 
     public function label(): string
     {

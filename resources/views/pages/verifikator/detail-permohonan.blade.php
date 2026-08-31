@@ -363,6 +363,17 @@ new #[Layout('layouts.app')] class extends Component {
                         <dt class="text-xs text-gray-400">Jenis Permohonan</dt>
                         <dd class="font-medium text-gray-800">{{ $permohonan->jenis_permohonan->label() }}</dd>
                     </div>
+                    @if ($permohonan->permohonanAsal)
+                        <div>
+                            <dt class="text-xs text-gray-400">Perpanjangan Dari</dt>
+                            <dd class="text-gray-700">
+                                <a href="{{ route('verifikator.detail', $permohonan->permohonanAsal->id) }}" wire:navigate
+                                    class="font-mono text-primary-600 hover:underline">
+                                    {{ $permohonan->permohonanAsal->nomor_permohonan }}
+                                </a>
+                            </dd>
+                        </div>
+                    @endif
                     <div>
                         <dt class="text-xs text-gray-400">Tanggal Pengajuan</dt>
                         <dd class="text-gray-700">
