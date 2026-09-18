@@ -21,7 +21,8 @@ class PermohonanService
         $prefix = "REQ-{$tahun}-";
 
         return DB::transaction(function () use ($prefix) {
-            $terakhir = Permohonan::where('nomor_permohonan', 'like', $prefix . '%')
+            $terakhir = Permohonan::withTrashed()
+                ->where('nomor_permohonan', 'like', $prefix . '%')
                 ->lockForUpdate()
                 ->orderByDesc('nomor_permohonan')
                 ->value('nomor_permohonan');
