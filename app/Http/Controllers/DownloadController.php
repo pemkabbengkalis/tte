@@ -36,7 +36,7 @@ class DownloadController extends Controller
             'permohonan_id' => $dokumen->permohonan_id,
         ]);
 
-        $konten = $this->bacaKontenDokumen($dokumen->path_file);
+        $konten = $this->bacaKontenDokumen($dokumen);
 
         return response($konten, 200, [
             'Content-Type'           => $dokumen->mime_type,
@@ -59,7 +59,7 @@ class DownloadController extends Controller
             'permohonan_id' => $dokumen->permohonan_id,
         ]);
 
-        $konten = $this->bacaKontenDokumen($dokumen->path_file);
+        $konten = $this->bacaKontenDokumen($dokumen);
 
         return response($konten, 200, [
             'Content-Type'           => $dokumen->mime_type,
@@ -76,14 +76,21 @@ class DownloadController extends Controller
      *   - File baru  : terenkripsi dengan encrypt() / AES-256-CBC Laravel
      *   - File lama  : plain, dikembalikan langsung (backward compatible)
      */
-    private function bacaKontenDokumen(string $pathFile): string
+    private function bacaKontenDokumen(DokumenPermohonan $dokumen): string
     {
-        $raw = Storage::disk('local')->get($pathFile);
+        $raw = Storage::disk('local')->get($dokumen->path_file);
 
         try {
+            // Jika ada DEK di database, berarti file ini menggunakan Envelope Encryption
+            if ($dokumen->dek) {
+                return \App\Services\EnvelopeEncryption::decrypt($raw, $dokumen->dek);
+            }
+
+            // Jika tidak ada DEK, coba dekripsi standar Laravel (backward compatible
+            // untuk file yang dienkripsi sebelum kita pindah ke Envelope Encryption)
             return decrypt($raw);
         } catch (DecryptException) {
-            // Bukan ciphertext Laravel — kembalikan konten mentah (file lama / plain)
+            // Jika semua gagal, asumsikan ini file lama yang sama sekali tidak dienkripsi
             return $raw;
         }
     }
