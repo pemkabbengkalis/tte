@@ -417,11 +417,13 @@ new #[Layout('layouts.app')] class extends Component {
                                 @if ($d)
                                     <p class="truncate text-xs text-gray-500">{{ $d->nama_file }} &middot;
                                         {{ $d->ukuranTerbaca() }} &middot; v{{ $d->versi }}</p>
+                                @elseif ($permohonan->status === \App\Enums\StatusPermohonan::Selesai)
+                                    <p class="text-xs italic text-gray-400">Telah dihapus setelah selesai</p>
                                 @else
                                     <p class="text-xs italic text-red-600">Belum diunggah</p>
                                 @endif
                             </div>
-                            @if ($d)
+                            @if ($d && $permohonan->status !== \App\Enums\StatusPermohonan::Selesai)
                                 <div class="flex shrink-0 gap-2">
                                     <a href="{{ route('dokumen.lihat', $d->id) }}" target="_blank" rel="noopener"
                                         class="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 transition hover:bg-gray-50">
