@@ -29,6 +29,7 @@ class DokumenPermohonan extends Model
         'ukuran_file',
         'mime_type',
         'dek',
+        'checksum',
         'versi',
     ];
 

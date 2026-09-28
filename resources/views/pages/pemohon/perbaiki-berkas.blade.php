@@ -121,6 +121,7 @@ new #[Layout('layouts.app')] class extends Component {
                 'ukuran_file' => $ukuran,
                 'mime_type' => $mime,
                 'dek' => $envelope['encrypted_dek'],
+                'checksum' => hash('sha256', $envelope['ciphertext']),
                 'versi' => $versiTertinggi + 1,
             ]);
         }

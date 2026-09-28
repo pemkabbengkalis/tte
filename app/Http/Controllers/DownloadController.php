@@ -83,6 +83,11 @@ class DownloadController extends Controller
         try {
             // Jika ada DEK di database, berarti file ini menggunakan Envelope Encryption
             if ($dokumen->dek) {
+                // Verifikasi Checksum Database (File Integrity Monitoring)
+                if ($dokumen->checksum && hash('sha256', $raw) !== $dokumen->checksum) {
+                    abort(403, 'Akses Ditolak: Integritas file rusak atau file telah dimodifikasi secara ilegal.');
+                }
+
                 return \App\Services\EnvelopeEncryption::decrypt($raw, $dokumen->dek);
             }
 
