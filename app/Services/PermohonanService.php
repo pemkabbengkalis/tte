@@ -127,6 +127,9 @@ class PermohonanService
 
     /**
      * Hasil TTE telah diunggah verifikator: Diterima -> Selesai.
+     * Dokumen persyaratan pemohon (KTP, SK, Surat) dihapus otomatis dari disk
+     * dan database setelah permohonan selesai — prinsip data minimization.
+     * Hasil TTE tetap disimpan sebagai bukti output.
      */
     public function selesaikan(Permohonan $permohonan, User $verifikator): Permohonan
     {
@@ -148,8 +151,41 @@ class PermohonanService
 
         $this->notifikasi->selesai($permohonan->load('pemohon'));
 
+        // Hapus dokumen persyaratan setelah notifikasi terkirim.
+        // Dilakukan di luar transaction: jika gagal, permohonan tetap selesai
+        // dan error dicatat di log (tidak membatalkan seluruh proses).
+        $this->hapusDokumenPersyaratan($permohonan);
+
         return $permohonan;
     }
+
+    /**
+     * Hapus file persyaratan pemohon (KTP, SK Jabatan, SK Pangkat, Surat Permohonan)
+     * dari disk dan database. Hasil TTE tidak dihapus.
+     */
+    private function hapusDokumenPersyaratan(Permohonan $permohonan): void
+    {
+        $jenisDihapus = \App\Enums\JenisDokumen::persyaratan();
+
+        $dokumen = $permohonan->dokumen()
+            ->whereIn('jenis_dokumen', array_map(fn($j) => $j->value, $jenisDihapus))
+            ->get();
+
+        foreach ($dokumen as $d) {
+            try {
+                \Illuminate\Support\Facades\Storage::disk('local')->delete($d->path_file);
+                $d->forceDelete();
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::error('Gagal hapus dokumen persyaratan setelah selesai', [
+                    'dokumen_id'    => $d->id,
+                    'permohonan_id' => $permohonan->id,
+                    'path_file'     => $d->path_file,
+                    'error'         => $e->getMessage(),
+                ]);
+            }
+        }
+    }
+
 
     public function tolak(Permohonan $permohonan, User $verifikator, string $alasan): Permohonan
     {

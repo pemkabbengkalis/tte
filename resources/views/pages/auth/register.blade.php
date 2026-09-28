@@ -3,6 +3,9 @@
 use App\Enums\RoleUser;
 use App\Models\User;
 use App\Rules\NoHtmlTags;
+use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 
@@ -41,11 +44,17 @@ new #[Layout('layouts.guest')] class extends Component {
 
     public function register(): void
     {
+        // Cek rate limit sebelum validasi agar bot tidak bisa flood
+        $this->ensureIsNotRateLimited();
+
         // Normalkan input kosong menjadi null agar aturan digits:18 dilewati
         // ketika pemohon belum memiliki NIP.
         $this->nip = ($this->nip === null || trim($this->nip) === '') ? null : trim($this->nip);
 
         $data = $this->validate();
+
+        // Catat percobaan registrasi per IP (decay 60 detik)
+        RateLimiter::hit($this->throttleKey(), 60);
 
         User::create([
             'nama_lengkap' => $data['nama_lengkap'],
@@ -57,10 +66,33 @@ new #[Layout('layouts.guest')] class extends Component {
             'role'         => RoleUser::Pemohon,
         ]);
 
+        // Registrasi berhasil — bersihkan counter
+        RateLimiter::clear($this->throttleKey());
+
         session()->flash('status', 'registered');
         $this->redirect(route('login'), navigate: true);
     }
+
+    protected function ensureIsNotRateLimited(): void
+    {
+        // Maks 5 percobaan registrasi per IP per menit
+        if (! RateLimiter::tooManyAttempts($this->throttleKey(), 5)) {
+            return;
+        }
+
+        $seconds = RateLimiter::availableIn($this->throttleKey());
+
+        throw ValidationException::withMessages([
+            'email' => "Terlalu banyak percobaan pendaftaran. Silakan coba lagi dalam {$seconds} detik.",
+        ]);
+    }
+
+    protected function throttleKey(): string
+    {
+        return 'register:' . request()->ip();
+    }
 };
+
 
 ?>
 
