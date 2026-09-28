@@ -175,9 +175,11 @@ new #[Layout('layouts.app')] class extends Component {
                 $lama = $this->permohonan->dokumen()->where('jenis_dokumen', 'hasil_tte')->lockForUpdate()->first();
 
                 $namaUuid = Str::uuid()->toString() . '.' . $ekstensi;
-                $oldPath  = $lama?->path_file;
-                $path     = 'dokumen/' . $namaUuid;
-                $envelope = \App\Services\EnvelopeEncryption::encrypt(file_get_contents($file->getRealPath()));
+                $path      = 'dokumen/' . $namaUuid;
+                
+                $plainText = file_get_contents($file->getRealPath());
+                $envelope  = \App\Services\EnvelopeEncryption::encrypt($plainText);
+                
                 Storage::disk('local')->put($path, $envelope['ciphertext']);
 
                 try {
@@ -189,7 +191,7 @@ new #[Layout('layouts.app')] class extends Component {
                             'ukuran_file' => $ukuran,
                             'mime_type'   => $mime,
                             'dek'         => $envelope['encrypted_dek'],
-                            'checksum'    => hash('sha256', $envelope['ciphertext']),
+                            'checksum'    => hash('sha256', $plainText),
                             'versi'       => $lama ? $lama->versi + 1 : 1,
                         ]
                     );

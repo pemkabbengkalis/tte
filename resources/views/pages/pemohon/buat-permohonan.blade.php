@@ -257,9 +257,11 @@ new #[Layout('layouts.app')] class extends Component {
 
             $namaUuid = Str::uuid()->toString() . '.' . $ekstensi;
             $oldPath = $lama?->path_file;
-            try{
+            
+            try {
                 $path = 'dokumen/' . $namaUuid;
-                $envelope = \App\Services\EnvelopeEncryption::encrypt(file_get_contents($file->getRealPath()));
+                $plainText = file_get_contents($file->getRealPath());
+                $envelope = \App\Services\EnvelopeEncryption::encrypt($plainText);
                 Storage::disk('local')->put($path, $envelope['ciphertext']);
 
                 DokumenPermohonan::updateOrCreate(
@@ -270,7 +272,7 @@ new #[Layout('layouts.app')] class extends Component {
                         'ukuran_file'   => $ukuran,
                         'mime_type'     => $mime,
                         'dek'           => $envelope['encrypted_dek'],
-                        'checksum'      => hash('sha256', $envelope['ciphertext']),
+                        'checksum'      => hash('sha256', $plainText),
                         'versi'         => $lama ? $lama->versi + 1 : 1,
                     ]
                 );

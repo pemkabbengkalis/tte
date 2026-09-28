@@ -80,22 +80,30 @@ class DownloadController extends Controller
     {
         $raw = Storage::disk('local')->get($dokumen->path_file);
 
-        try {
-            // Jika ada DEK di database, berarti file ini menggunakan Envelope Encryption
-            if ($dokumen->dek) {
-                // Verifikasi Checksum Database (File Integrity Monitoring)
-                if ($dokumen->checksum && hash('sha256', $raw) !== $dokumen->checksum) {
-                    abort(403, 'Akses Ditolak: Integritas file rusak atau file telah dimodifikasi secara ilegal.');
+        // Skenario 1: File Baru (Menggunakan Envelope Encryption dengan DEK)
+        if ($dokumen->dek) {
+            try {
+                // Buka gembok filenya dulu untuk mendapatkan isi aslinya (plaintext)
+                $plainText = \App\Services\EnvelopeEncryption::decrypt($raw, $dokumen->dek);
+
+                // Verifikasi Checksum Database (File Integrity Monitoring) pada isi aslinya
+                if ($dokumen->checksum && hash('sha256', $plainText) !== $dokumen->checksum) {
+                    abort(403, 'Akses Ditolak: Integritas file rusak (Checksum file asli tidak cocok).');
                 }
 
-                return \App\Services\EnvelopeEncryption::decrypt($raw, $dokumen->dek);
+                return $plainText;
+            } catch (\Illuminate\Contracts\Encryption\DecryptException $e) {
+                // Jika proses decrypt gagal (segel MAC rusak), berarti file telah diubah paksa
+                abort(403, 'Akses Ditolak: Integritas file rusak (Segel enkripsi telah dimodifikasi secara ilegal).');
             }
+        }
 
-            // Jika tidak ada DEK, coba dekripsi standar Laravel (backward compatible
-            // untuk file yang dienkripsi sebelum kita pindah ke Envelope Encryption)
+        // Skenario 2: File Lama (Tanpa DEK)
+        try {
+            // Coba dekripsi standar Laravel (backward compatible)
             return decrypt($raw);
-        } catch (DecryptException) {
-            // Jika semua gagal, asumsikan ini file lama yang sama sekali tidak dienkripsi
+        } catch (\Illuminate\Contracts\Encryption\DecryptException) {
+            // Jika gagal juga, asumsikan ini file super lama yang sama sekali tidak dienkripsi
             return $raw;
         }
     }

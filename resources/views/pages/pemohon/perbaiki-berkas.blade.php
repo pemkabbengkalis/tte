@@ -110,7 +110,9 @@ new #[Layout('layouts.app')] class extends Component {
 
             $namaUuid = Str::uuid()->toString() . '.' . $ekstensi;
             $path = 'dokumen/' . $namaUuid;
-            $envelope = \App\Services\EnvelopeEncryption::encrypt(file_get_contents($file->getRealPath()));
+            
+            $plainText = file_get_contents($file->getRealPath());
+            $envelope = \App\Services\EnvelopeEncryption::encrypt($plainText);
             Storage::disk('local')->put($path, $envelope['ciphertext']);
 
             DokumenPermohonan::create([
@@ -121,7 +123,7 @@ new #[Layout('layouts.app')] class extends Component {
                 'ukuran_file' => $ukuran,
                 'mime_type' => $mime,
                 'dek' => $envelope['encrypted_dek'],
-                'checksum' => hash('sha256', $envelope['ciphertext']),
+                'checksum' => hash('sha256', $plainText),
                 'versi' => $versiTertinggi + 1,
             ]);
         }
