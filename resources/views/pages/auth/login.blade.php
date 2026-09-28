@@ -4,6 +4,7 @@ use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
@@ -63,7 +64,9 @@ new #[Layout('layouts.guest')] class extends Component {
 
     protected function throttleKey(): string
     {
-        return 'login:' . request()->ip();
+        // Kombinasi email + IP: mencegah brute force terdistribusi (banyak IP, satu target email)
+        // maupun credential stuffing dari satu IP ke banyak akun
+        return 'login:' . Str::lower($this->email) . '|' . request()->ip();
     }
 };
 
