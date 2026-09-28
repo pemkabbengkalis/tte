@@ -5,6 +5,7 @@ use App\Enums\StatusPermohonan;
 use App\Models\DokumenPermohonan;
 use App\Models\Permohonan;
 use App\Services\PermohonanService;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
@@ -108,7 +109,8 @@ new #[Layout('layouts.app')] class extends Component {
             $versiTertinggi = (int) $this->permohonan->dokumen()->where('jenis_dokumen', $jenis)->max('versi');
 
             $namaUuid = Str::uuid()->toString() . '.' . $ekstensi;
-            $path = $file->storeAs('dokumen', $namaUuid, 'local');
+            $path = 'dokumen/' . $namaUuid;
+            Storage::disk('local')->put($path, encrypt(file_get_contents($file->getRealPath())));
 
             DokumenPermohonan::create([
                 'permohonan_id' => $this->permohonan->id,

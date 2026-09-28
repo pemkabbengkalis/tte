@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\DokumenPermohonan;
 use App\Models\TemplateDokumen;
+use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
@@ -30,20 +31,20 @@ class DownloadController extends Controller
         abort_unless(Storage::disk('local')->exists($dokumen->path_file), 404);
 
         Log::info('Akses lihat dokumen', [
-            'user_id' => $request->user()->id,
-            'dokumen_id' => $dokumen->id,
+            'user_id'       => $request->user()->id,
+            'dokumen_id'    => $dokumen->id,
             'permohonan_id' => $dokumen->permohonan_id,
         ]);
 
-        return response()->file(
-            Storage::disk('local')->path($dokumen->path_file),
-            [
-                'Content-Type'              => $dokumen->mime_type,
-                'X-Content-Type-Options'    => 'nosniff',
-                'Content-Disposition'       => 'inline; filename="' . addslashes($dokumen->nama_file) . '"',
-                'Cache-Control'             => 'private, no-store, max-age=0',
-            ]
-        );
+        $konten = $this->bacaKontenDokumen($dokumen->path_file);
+
+        return response($konten, 200, [
+            'Content-Type'           => $dokumen->mime_type,
+            'Content-Length'         => strlen($konten),
+            'X-Content-Type-Options' => 'nosniff',
+            'Content-Disposition'    => 'inline; filename="' . addslashes($dokumen->nama_file) . '"',
+            'Cache-Control'          => 'private, no-store, max-age=0',
+        ]);
     }
 
     public function dokumenUnduh(Request $request, DokumenPermohonan $dokumen)
@@ -53,18 +54,37 @@ class DownloadController extends Controller
         abort_unless(Storage::disk('local')->exists($dokumen->path_file), 404);
 
         Log::info('Akses unduh dokumen', [
-            'user_id' => $request->user()->id,
-            'dokumen_id' => $dokumen->id,
+            'user_id'       => $request->user()->id,
+            'dokumen_id'    => $dokumen->id,
             'permohonan_id' => $dokumen->permohonan_id,
         ]);
 
-        return Storage::disk('local')->download(
-            $dokumen->path_file,
-            $dokumen->nama_file,
-            [
-                'X-Content-Type-Options' => 'nosniff',
-                'Cache-Control'          => 'private, no-store, max-age=0',
-            ]
-        );
+        $konten = $this->bacaKontenDokumen($dokumen->path_file);
+
+        return response($konten, 200, [
+            'Content-Type'           => $dokumen->mime_type,
+            'Content-Length'         => strlen($konten),
+            'X-Content-Type-Options' => 'nosniff',
+            'Content-Disposition'    => 'attachment; filename="' . addslashes($dokumen->nama_file) . '"',
+            'Cache-Control'          => 'private, no-store, max-age=0',
+        ]);
+    }
+
+    /**
+     * Baca konten dokumen dari disk.
+     * Mendukung dua format secara transparan:
+     *   - File baru  : terenkripsi dengan encrypt() / AES-256-CBC Laravel
+     *   - File lama  : plain, dikembalikan langsung (backward compatible)
+     */
+    private function bacaKontenDokumen(string $pathFile): string
+    {
+        $raw = Storage::disk('local')->get($pathFile);
+
+        try {
+            return decrypt($raw);
+        } catch (DecryptException) {
+            // Bukan ciphertext Laravel — kembalikan konten mentah (file lama / plain)
+            return $raw;
+        }
     }
 }

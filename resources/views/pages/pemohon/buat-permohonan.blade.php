@@ -258,7 +258,8 @@ new #[Layout('layouts.app')] class extends Component {
             $namaUuid = Str::uuid()->toString() . '.' . $ekstensi;
             $oldPath = $lama?->path_file;
             try{
-                $path = $file->storeAs('dokumen', $namaUuid, 'local');
+                $path = 'dokumen/' . $namaUuid;
+                Storage::disk('local')->put($path, encrypt(file_get_contents($file->getRealPath())));
 
                 DokumenPermohonan::updateOrCreate(
                     ['permohonan_id' => $permohonan->id, 'jenis_dokumen' => $jenis],
